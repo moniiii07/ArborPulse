@@ -16,3 +16,6 @@ streamlit>=1.37
 
 # --- Optional Gemini NLG layer (reasoning_log/llm_summary.py) ---
 # google-generativeai
+
+earthengine-api>=1.5.0
+numpy>=1.26.0
