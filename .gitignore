@@ -1,0 +1,25 @@
+# Generated at runtime — ephemeral on Streamlit Cloud, don't commit run artifacts
+outputs/decision_logs/*.json
+outputs/decision_logs/*.md
+outputs/geojson/*.geojson
+!outputs/decision_logs/.gitkeep
+!outputs/geojson/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets — Earth Engine service account key, Gemini API key, etc.
+# NEVER commit these; Streamlit Cloud secrets go in its own secrets manager instead
+*.json.key
+.env
+config/credentials*
+service_account*.json
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store

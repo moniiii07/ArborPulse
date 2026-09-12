@@ -1,0 +1,18 @@
+# --- Currently required (analysis/ + reasoning_log/ modules) ---
+streamlit>=1.37
+
+# --- Needed once Member A's data_acquisition/ + detection/ modules land ---
+# Uncomment as each piece is wired in — keeping this list accurate matters:
+# Streamlit Cloud reinstalls from this file on every deploy, so an inflated
+# list slows builds, and a missing one breaks them.
+
+# earthengine-api
+# google-auth
+# rasterio
+# geopandas
+# shapely
+# numpy
+# pandas
+
+# --- Optional Gemini NLG layer (reasoning_log/llm_summary.py) ---
+# google-generativeai
