@@ -1,0 +1,27 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Rondonia Arc of Deforestation pilot area",
+        "country": "Brazil",
+        "biome": "Amazon rainforest",
+        "forest_type": "tropical_mixed",
+        "notes": "Compact BR-163/Rondonia frontier study area centred near -10.5, -62.5. Use this pilot boundary for the demo; validate any reported clearing against reference imagery."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-62.5300, -10.5300],
+            [-62.4700, -10.5300],
+            [-62.4700, -10.4700],
+            [-62.5300, -10.4700],
+            [-62.5300, -10.5300]
+          ]
+        ]
+      }
+    }
+  ]
+}
