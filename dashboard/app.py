@@ -11,6 +11,7 @@ HANDOFF_CANDIDATES = (
     Path("../Arborpulse/outputs/member_a_handoff.json"),
 )
 DEFAULT_HANDOFF = next((path for path in HANDOFF_CANDIDATES if path.exists()), HANDOFF_CANDIDATES[0])
+MODEL_EVALUATION = Path("outputs/model_evaluation.json")
 
 
 def load_handoff(path: Path) -> dict:
@@ -65,6 +66,19 @@ st.subheader("Decision trail")
 for item in decision.get("limitations", []):
     st.write(f"• {item}")
 st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+
+if MODEL_EVALUATION.exists():
+    model = load_handoff(MODEL_EVALUATION)
+    st.subheader("Custom Random Forest screening model")
+    model_metrics = st.columns(4)
+    model_metrics[0].metric("Spatial hold-out accuracy", f"{model['overall_accuracy'] * 100:.2f}%")
+    model_metrics[1].metric("Loss precision", f"{model['loss_class_precision'] * 100:.2f}%")
+    model_metrics[2].metric("Loss recall", f"{model['loss_class_recall'] * 100:.2f}%")
+    model_metrics[3].metric("Loss F1", f"{model['loss_class_f1'] * 100:.2f}%")
+    st.caption(
+        f"Trained on {model['training_samples']:,} balanced samples; tested on "
+        f"{model['testing_samples']:,} geographically held-out samples. {model['interpretation']}"
+    )
 
 with st.expander("Raw Member A handoff"):
     st.json(data)

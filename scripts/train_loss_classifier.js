@@ -83,3 +83,30 @@ Map.addLayer(label.selfMask(), {palette: ['#542788']}, 'Training labels: Hansen 
 
 print('Training sample count', trainSamples.size());
 print('Testing sample count', testSamples.size());
+
+// New Code Editor layouts can hide the Console. Show the essential model
+// evaluation in the map itself, so it is visible during the demo.
+var metricsPanel = ui.Panel({
+  style: {
+    position: 'bottom-left', padding: '8px', width: '310px',
+    backgroundColor: 'white'
+  }
+});
+metricsPanel.add(ui.Label({value: 'ArborPulse RF model evaluation', style: {fontWeight: 'bold'}}));
+metricsPanel.add(ui.Label('Spatial hold-out: west = training, east = testing'));
+
+function addMetric(name, serverValue) {
+  var label = ui.Label(name + ': calculating…');
+  metricsPanel.add(label);
+  serverValue.evaluate(function(value) {
+    label.setValue(name + ': ' + JSON.stringify(value));
+  });
+}
+
+addMetric('Overall accuracy', matrix.accuracy());
+addMetric('Precision by class [no-loss, loss]', matrix.consumersAccuracy());
+addMetric('Recall by class [no-loss, loss]', matrix.producersAccuracy());
+addMetric('F1 by class [no-loss, loss]', matrix.fscore());
+addMetric('Training samples', trainSamples.size());
+addMetric('Testing samples', testSamples.size());
+Map.add(metricsPanel);
