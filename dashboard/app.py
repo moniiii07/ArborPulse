@@ -6,7 +6,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from config.region_utils import validate_region_geojson
+from config.region_utils import geometry_center, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, log_review
 
 HANDOFF_CANDIDATES = (
@@ -65,6 +65,11 @@ before, after = data["before"], data["after"]
 change = data["ndvi_change"]
 timing = data.get("comparison_timing")
 
+region_payload = json.loads(Path("config/region.geojson").read_text(encoding="utf-8"))
+if Path("config/user_region.geojson").exists():
+    region_payload = json.loads(Path("config/user_region.geojson").read_text(encoding="utf-8"))
+longitude, latitude = geometry_center(region_payload)
+
 status = decision.get("status", "unknown")
 if status == "review_required":
     st.warning(decision.get("headline", "Review required"))
@@ -106,6 +111,13 @@ st.subheader("Decision trail")
 for item in decision.get("limitations", []):
     st.write(f"• {item}")
 st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+
+st.subheader("Visual validation")
+st.caption("Open satellite imagery to inspect the review area before recording an outcome. Imagery date and resolution vary by provider.")
+st.link_button(
+    "Open satellite imagery for this study area",
+    f"https://www.google.com/maps/@{latitude:.6f},{longitude:.6f},14z/data=!3m1!1e3",
+)
 
 st.subheader("Human review")
 st.caption("Record what a reviewer found after inspecting the flagged area. Feedback stays local and is not committed to Git.")

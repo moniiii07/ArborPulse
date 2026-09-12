@@ -22,3 +22,22 @@ def validate_region_geojson(payload: dict[str, Any]) -> dict[str, Any]:
     if not geometry.get("coordinates"):
         raise ValueError("The study-area geometry has no coordinates.")
     return geometry
+
+
+def geometry_center(geometry: dict[str, Any]) -> tuple[float, float]:
+    """Return a simple longitude/latitude bounding-box centre for a geometry."""
+    geometry = validate_region_geojson(geometry)
+
+    def walk(values: Any) -> list[tuple[float, float]]:
+        if not values:
+            return []
+        if isinstance(values[0], (int, float)):
+            return [(float(values[0]), float(values[1]))]
+        points: list[tuple[float, float]] = []
+        for value in values:
+            points.extend(walk(value))
+        return points
+
+    points = walk(geometry["coordinates"])
+    longitudes, latitudes = zip(*points)
+    return ((min(longitudes) + max(longitudes)) / 2, (min(latitudes) + max(latitudes)) / 2)

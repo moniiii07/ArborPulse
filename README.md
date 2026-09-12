@@ -17,3 +17,7 @@ Use `monitoring/run_monitor.py` to create a dated, same-season monitoring handof
 ## Human review feedback
 
 After inspecting a review queue, a user can record an outcome in the dashboard: confirmed forest loss, seasonal change, fire/burn scar, agriculture/harvest, false alarm, or needs more evidence. Reviews are saved locally in `outputs/reviews/reviews.jsonl` and are not committed to Git.
+
+## Visual validation
+
+The dashboard links reviewers to satellite imagery centred on the active study boundary. This is a human-review aid only: imagery recency and resolution vary, so the reviewer must confirm that it is suitable before assigning an outcome.
