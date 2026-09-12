@@ -7,7 +7,7 @@ from pathlib import Path
 import streamlit as st
 
 from config.region_utils import geometry_center, validate_region_geojson
-from feedback.correction_logger import VALID_OUTCOMES, log_review
+from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
 
 HANDOFF_CANDIDATES = (
     Path("outputs/member_a_handoff.json"),
@@ -151,6 +151,23 @@ if submitted:
         note=note,
     )
     st.success(f"Review saved locally to {saved_path}.")
+
+reviews = get_reviews()
+if reviews:
+    st.caption(f"Saved review history ({len(reviews)} record{'s' if len(reviews) != 1 else ''})")
+    st.dataframe(
+        [
+            {
+                "Reviewed at": review["reviewed_at"],
+                "Outcome": review["outcome"].replace("_", " "),
+                "Pipeline status": review["pipeline_status"].replace("_", " "),
+                "Note": review["note"] or "—",
+            }
+            for review in reviews
+        ],
+        hide_index=True,
+        use_container_width=True,
+    )
 
 if MODEL_EVALUATION.exists():
     model = load_handoff(MODEL_EVALUATION)

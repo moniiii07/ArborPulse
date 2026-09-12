@@ -88,3 +88,13 @@ def log_review(
     with destination.open("a", encoding="utf-8") as review_file:
         review_file.write(json.dumps(record) + "\n")
     return destination
+
+
+def get_reviews(path: str | Path = "outputs/reviews/reviews.jsonl") -> list[dict[str, Any]]:
+    """Return newest dashboard review records first; tolerate a missing log."""
+    source = Path(path)
+    if not source.exists():
+        return []
+    with source.open(encoding="utf-8") as review_file:
+        records = [json.loads(line) for line in review_file if line.strip()]
+    return list(reversed(records))
