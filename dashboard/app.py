@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import streamlit as st
 
 from config.region_utils import geometry_center, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
+from analysis.temporal_context import comparison_context
 
 HANDOFF_CANDIDATES = (
     Path("outputs/member_a_handoff.json"),
@@ -53,6 +55,25 @@ if upload is not None:
         )
     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         st.sidebar.error(f"Invalid study-area file: {error}")
+
+st.sidebar.subheader("New analysis")
+before_request = st.sidebar.date_input("Before date", value=date(2025, 1, 15))
+after_request = st.sidebar.date_input("After date", value=date(2026, 1, 15))
+if after_request <= before_request:
+    st.sidebar.error("The after date must be later than the before date.")
+else:
+    requested_timing = comparison_context(before_request.isoformat(), after_request.isoformat())
+    if requested_timing["same_season"]:
+        st.sidebar.success("Same-season comparison")
+    else:
+        st.sidebar.warning("Seasonal mismatch — use same-month dates when possible.")
+    active_region = "config/user_region.geojson" if Path("config/user_region.geojson").exists() else "config/region.geojson"
+    st.sidebar.code(
+        "python run_pipeline.py --project composed-arch-476417-e5 "
+        f"--region {active_region} --before {before_request.isoformat()} "
+        f"--after {after_request.isoformat()} --hansen-year {after_request.year}",
+        language="bash",
+    )
 
 options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
 if SAME_SEASON_HANDOFF:
