@@ -44,7 +44,10 @@ else:
     st.info(decision.get("headline", "Pipeline result available"))
 
 metrics = st.columns(4)
-metrics[0].metric("Confidence", confidence.get("label", "unknown").title(), confidence.get("score"))
+metrics[0].metric(
+    "Data confidence", confidence.get("label", "unknown").title(), confidence.get("score"),
+    help="Based on usable imagery and calibration availability; it is not certainty that deforestation occurred.",
+)
 metrics[1].metric("Mean NDVI change", f"{change['mean_delta']:+.4f}")
 metrics[2].metric("Review-queue area", f"{change['loss_pixel_pct']:.2f}%")
 metrics[3].metric("Usable pixels", f"{before['usable_pixel_pct']:.1f}% → {after['usable_pixel_pct']:.1f}%")
