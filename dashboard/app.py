@@ -11,6 +11,11 @@ HANDOFF_CANDIDATES = (
     Path("../Arborpulse/outputs/member_a_handoff.json"),
 )
 DEFAULT_HANDOFF = next((path for path in HANDOFF_CANDIDATES if path.exists()), HANDOFF_CANDIDATES[0])
+SAME_SEASON_CANDIDATES = (
+    Path("outputs/member_a_handoff_same_season.json"),
+    Path("../Arborpulse/outputs/member_a_handoff_same_season.json"),
+)
+SAME_SEASON_HANDOFF = next((path for path in SAME_SEASON_CANDIDATES if path.exists()), None)
 MODEL_EVALUATION = Path("outputs/model_evaluation.json")
 
 
@@ -23,7 +28,11 @@ st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
 st.title("🌿 ArborPulse")
 st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
 
-path_text = st.sidebar.text_input("Member A handoff JSON", str(DEFAULT_HANDOFF))
+options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
+if SAME_SEASON_HANDOFF:
+    options["Same-season comparison: Jan 2025 → Jan 2026"] = SAME_SEASON_HANDOFF
+selected_label = st.sidebar.selectbox("Analysis scenario", list(options))
+path_text = st.sidebar.text_input("Member A handoff JSON", str(options[selected_label]))
 handoff_path = Path(path_text)
 if not handoff_path.exists():
     st.info("Run `python run_pipeline.py ...` first, then refresh this page.")
