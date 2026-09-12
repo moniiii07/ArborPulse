@@ -6,6 +6,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from config.region_utils import validate_region_geojson
+
 HANDOFF_CANDIDATES = (
     Path("outputs/member_a_handoff.json"),
     Path("../Arborpulse/outputs/member_a_handoff.json"),
@@ -27,6 +29,23 @@ def load_handoff(path: Path) -> dict:
 st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
 st.title("🌿 ArborPulse")
 st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
+
+st.sidebar.subheader("Study area")
+upload = st.sidebar.file_uploader("Upload a Polygon GeoJSON", type=["geojson", "json"])
+if upload is not None:
+    try:
+        uploaded_region = json.loads(upload.getvalue().decode("utf-8"))
+        validate_region_geojson(uploaded_region)
+        custom_region_path = Path("config/user_region.geojson")
+        custom_region_path.write_text(json.dumps(uploaded_region, indent=2) + "\n", encoding="utf-8")
+        st.sidebar.success("Boundary validated and saved locally.")
+        st.sidebar.code(
+            "python run_pipeline.py --project composed-arch-476417-e5 "
+            "--region config/user_region.geojson --before YYYY-MM-DD --after YYYY-MM-DD",
+            language="bash",
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        st.sidebar.error(f"Invalid study-area file: {error}")
 
 options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
 if SAME_SEASON_HANDOFF:

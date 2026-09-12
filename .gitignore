@@ -17,6 +17,7 @@ venv/
 .env
 config/credentials*
 service_account*.json
+config/user_region.geojson
 
 # Notebook checkpoints
 .ipynb_checkpoints/

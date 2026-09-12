@@ -5,3 +5,7 @@
 ## Date comparability
 
 The pipeline records whether its before/after dates are seasonally comparable. Dates from the same month or adjacent months are marked `same_season`; other comparisons are marked `seasonal_mismatch` and visibly carry a seasonal-confounding warning in the dashboard. Use the same month in different years whenever possible.
+
+## Custom study areas
+
+Upload one Polygon or MultiPolygon GeoJSON through the dashboard. ArborPulse validates it and saves it locally as `config/user_region.geojson`; rerun the pipeline with `--region config/user_region.geojson` and your chosen dates. The uploaded boundary is local and intentionally excluded from Git.
