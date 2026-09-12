@@ -4,25 +4,32 @@ from __future__ import annotations
 import json
 from datetime import date
 from pathlib import Path
+import sys
 
 import streamlit as st
+
+# Streamlit executes this file from dashboard/, so expose the project root for
+# shared analysis, configuration, and feedback modules.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from config.region_utils import geometry_center, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
 from analysis.temporal_context import comparison_context
 
 HANDOFF_CANDIDATES = (
-    Path("outputs/member_a_handoff.json"),
-    Path("../Arborpulse/outputs/member_a_handoff.json"),
+    ROOT / "outputs/member_a_handoff.json",
+    ROOT.parent / "Arborpulse/outputs/member_a_handoff.json",
 )
 DEFAULT_HANDOFF = next((path for path in HANDOFF_CANDIDATES if path.exists()), HANDOFF_CANDIDATES[0])
 SAME_SEASON_CANDIDATES = (
-    Path("outputs/member_a_handoff_same_season.json"),
-    Path("../Arborpulse/outputs/member_a_handoff_same_season.json"),
+    ROOT / "outputs/member_a_handoff_same_season.json",
+    ROOT.parent / "Arborpulse/outputs/member_a_handoff_same_season.json",
 )
 SAME_SEASON_HANDOFF = next((path for path in SAME_SEASON_CANDIDATES if path.exists()), None)
-MODEL_EVALUATION = Path("outputs/model_evaluation.json")
-MONITORING_DIRECTORIES = (Path("outputs/monitoring"), Path("../Arborpulse/outputs/monitoring"))
+MODEL_EVALUATION = ROOT / "outputs/model_evaluation.json"
+MONITORING_DIRECTORIES = (ROOT / "outputs/monitoring", ROOT.parent / "Arborpulse/outputs/monitoring")
 
 
 def load_handoff(path: Path) -> dict:
@@ -38,6 +45,7 @@ def latest_monitoring_handoff() -> Path | None:
 st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
 st.title("🌿 ArborPulse")
 st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
+st.info("To analyse a new place: open the sidebar, upload its GeoJSON boundary under **Study area**, then select **Before date** and **After date** under **New analysis**.")
 
 st.sidebar.subheader("Study area")
 upload = st.sidebar.file_uploader("Upload a Polygon GeoJSON", type=["geojson", "json"])
@@ -45,7 +53,7 @@ if upload is not None:
     try:
         uploaded_region = json.loads(upload.getvalue().decode("utf-8"))
         validate_region_geojson(uploaded_region)
-        custom_region_path = Path("config/user_region.geojson")
+        custom_region_path = ROOT / "config/user_region.geojson"
         custom_region_path.write_text(json.dumps(uploaded_region, indent=2) + "\n", encoding="utf-8")
         st.sidebar.success("Boundary validated and saved locally.")
         st.sidebar.code(
@@ -67,7 +75,7 @@ else:
         st.sidebar.success("Same-season comparison")
     else:
         st.sidebar.warning("Seasonal mismatch — use same-month dates when possible.")
-    active_region = "config/user_region.geojson" if Path("config/user_region.geojson").exists() else "config/region.geojson"
+    active_region = "config/user_region.geojson" if (ROOT / "config/user_region.geojson").exists() else "config/region.geojson"
     st.sidebar.code(
         "python run_pipeline.py --project composed-arch-476417-e5 "
         f"--region {active_region} --before {before_request.isoformat()} "
@@ -92,9 +100,9 @@ before, after = data["before"], data["after"]
 change = data["ndvi_change"]
 timing = data.get("comparison_timing")
 
-region_payload = json.loads(Path("config/region.geojson").read_text(encoding="utf-8"))
-if Path("config/user_region.geojson").exists():
-    region_payload = json.loads(Path("config/user_region.geojson").read_text(encoding="utf-8"))
+region_payload = json.loads((ROOT / "config/region.geojson").read_text(encoding="utf-8"))
+if (ROOT / "config/user_region.geojson").exists():
+    region_payload = json.loads((ROOT / "config/user_region.geojson").read_text(encoding="utf-8"))
 longitude, latitude = geometry_center(region_payload)
 
 status = decision.get("status", "unknown")
@@ -205,6 +213,11 @@ if MODEL_EVALUATION.exists():
 
 with st.expander("Raw Member A handoff"):
     st.json(data)
+
+# A previous Member B prototype dashboard is retained below for reference, but
+# it is a separate app with optional live-sensing dependencies. Stop here so
+# it cannot execute alongside the integrated ArborPulse Earth Engine dashboard.
+st.stop()
 
 """
 dashboard/app.py — SylvaSense / ArborPulse MRV dashboard

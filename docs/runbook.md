@@ -22,6 +22,16 @@ python run_pipeline.py \
 
 Choose same-season dates when possible. The pipeline records any seasonal mismatch in the JSON handoff and dashboard.
 
+## Preflight check
+
+Before a demo or scheduled run, verify local readiness:
+
+```bash
+python scripts/preflight_check.py --project composed-arch-476417-e5
+```
+
+The command checks the boundary, required Python packages, output folders, and the Earth Engine connection. It does not alter satellite data or credentials.
+
 ## Run the dashboard
 
 ```bash
