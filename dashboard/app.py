@@ -34,6 +34,7 @@ decision = data.get("decision", {})
 confidence = data.get("confidence", {})
 before, after = data["before"], data["after"]
 change = data["ndvi_change"]
+timing = data.get("comparison_timing")
 
 status = decision.get("status", "unknown")
 if status == "review_required":
@@ -51,6 +52,13 @@ metrics[0].metric(
 metrics[1].metric("Mean NDVI change", f"{change['mean_delta']:+.4f}")
 metrics[2].metric("Review-queue area", f"{change['loss_pixel_pct']:.2f}%")
 metrics[3].metric("Usable pixels", f"{before['usable_pixel_pct']:.1f}% → {after['usable_pixel_pct']:.1f}%")
+
+if timing:
+    if timing["same_season"]:
+        st.success(f"Comparison timing: same season · {timing['day_gap']} days apart")
+    else:
+        st.warning(f"Comparison timing: seasonal mismatch · {timing['day_gap']} days apart")
+    st.caption(timing["interpretation"])
 
 st.subheader("Evidence")
 for item in decision.get("evidence", []):
