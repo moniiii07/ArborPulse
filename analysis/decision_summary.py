@@ -7,6 +7,7 @@ from typing import Any
 def build_decision_summary(
     before: dict[str, Any], after: dict[str, Any], ndvi_change: dict[str, Any],
     confidence: dict[str, Any], hansen_validation: dict[str, Any] | None,
+    temporal_context: dict[str, Any],
 ) -> dict[str, Any]:
     """Return an explainable recommendation without claiming deforestation.
 
@@ -23,9 +24,12 @@ def build_decision_summary(
     ]
     limitations = [
         "NDVI decline is a vegetation-change signal, not proof of deforestation.",
-        "The comparison dates are in different seasons; seasonal vegetation differences may contribute to the signal.",
         "Open-Canopy canopy-height inference is pending checkpoint validation.",
     ]
+    if temporal_context["same_season"]:
+        evidence.append("The selected dates are seasonally comparable, reducing seasonal vegetation confounding.")
+    else:
+        limitations.append("The comparison dates are in different seasons; seasonal vegetation differences may contribute to the signal.")
     if hansen_validation:
         overlap = float(hansen_validation["ndvi_review_overlap_pct"])
         evidence.append(f"{overlap:.2f}% of NDVI review pixels overlap 2025 Hansen annual tree-cover-loss pixels.")

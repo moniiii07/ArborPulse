@@ -6,11 +6,19 @@ from pathlib import Path
 
 import streamlit as st
 
+from config.region_utils import validate_region_geojson
+
 HANDOFF_CANDIDATES = (
     Path("outputs/member_a_handoff.json"),
     Path("../Arborpulse/outputs/member_a_handoff.json"),
 )
 DEFAULT_HANDOFF = next((path for path in HANDOFF_CANDIDATES if path.exists()), HANDOFF_CANDIDATES[0])
+SAME_SEASON_CANDIDATES = (
+    Path("outputs/member_a_handoff_same_season.json"),
+    Path("../Arborpulse/outputs/member_a_handoff_same_season.json"),
+)
+SAME_SEASON_HANDOFF = next((path for path in SAME_SEASON_CANDIDATES if path.exists()), None)
+MODEL_EVALUATION = Path("outputs/model_evaluation.json")
 
 
 def load_handoff(path: Path) -> dict:
@@ -22,7 +30,28 @@ st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
 st.title("🌿 ArborPulse")
 st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
 
-path_text = st.sidebar.text_input("Member A handoff JSON", str(DEFAULT_HANDOFF))
+st.sidebar.subheader("Study area")
+upload = st.sidebar.file_uploader("Upload a Polygon GeoJSON", type=["geojson", "json"])
+if upload is not None:
+    try:
+        uploaded_region = json.loads(upload.getvalue().decode("utf-8"))
+        validate_region_geojson(uploaded_region)
+        custom_region_path = Path("config/user_region.geojson")
+        custom_region_path.write_text(json.dumps(uploaded_region, indent=2) + "\n", encoding="utf-8")
+        st.sidebar.success("Boundary validated and saved locally.")
+        st.sidebar.code(
+            "python run_pipeline.py --project composed-arch-476417-e5 "
+            "--region config/user_region.geojson --before YYYY-MM-DD --after YYYY-MM-DD",
+            language="bash",
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        st.sidebar.error(f"Invalid study-area file: {error}")
+
+options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
+if SAME_SEASON_HANDOFF:
+    options["Same-season comparison: Jan 2025 → Jan 2026"] = SAME_SEASON_HANDOFF
+selected_label = st.sidebar.selectbox("Analysis scenario", list(options))
+path_text = st.sidebar.text_input("Member A handoff JSON", str(options[selected_label]))
 handoff_path = Path(path_text)
 if not handoff_path.exists():
     st.info("Run `python run_pipeline.py ...` first, then refresh this page.")
@@ -33,6 +62,7 @@ decision = data.get("decision", {})
 confidence = data.get("confidence", {})
 before, after = data["before"], data["after"]
 change = data["ndvi_change"]
+timing = data.get("comparison_timing")
 
 status = decision.get("status", "unknown")
 if status == "review_required":
@@ -43,10 +73,20 @@ else:
     st.info(decision.get("headline", "Pipeline result available"))
 
 metrics = st.columns(4)
-metrics[0].metric("Confidence", confidence.get("label", "unknown").title(), confidence.get("score"))
+metrics[0].metric(
+    "Data confidence", confidence.get("label", "unknown").title(), confidence.get("score"),
+    help="Based on usable imagery and calibration availability; it is not certainty that deforestation occurred.",
+)
 metrics[1].metric("Mean NDVI change", f"{change['mean_delta']:+.4f}")
 metrics[2].metric("Review-queue area", f"{change['loss_pixel_pct']:.2f}%")
 metrics[3].metric("Usable pixels", f"{before['usable_pixel_pct']:.1f}% → {after['usable_pixel_pct']:.1f}%")
+
+if timing:
+    if timing["same_season"]:
+        st.success(f"Comparison timing: same season · {timing['day_gap']} days apart")
+    else:
+        st.warning(f"Comparison timing: seasonal mismatch · {timing['day_gap']} days apart")
+    st.caption(timing["interpretation"])
 
 st.subheader("Evidence")
 for item in decision.get("evidence", []):
@@ -65,6 +105,19 @@ st.subheader("Decision trail")
 for item in decision.get("limitations", []):
     st.write(f"• {item}")
 st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+
+if MODEL_EVALUATION.exists():
+    model = load_handoff(MODEL_EVALUATION)
+    st.subheader("Custom Random Forest screening model")
+    model_metrics = st.columns(4)
+    model_metrics[0].metric("Spatial hold-out accuracy", f"{model['overall_accuracy'] * 100:.2f}%")
+    model_metrics[1].metric("Loss precision", f"{model['loss_class_precision'] * 100:.2f}%")
+    model_metrics[2].metric("Loss recall", f"{model['loss_class_recall'] * 100:.2f}%")
+    model_metrics[3].metric("Loss F1", f"{model['loss_class_f1'] * 100:.2f}%")
+    st.caption(
+        f"Trained on {model['training_samples']:,} balanced samples; tested on "
+        f"{model['testing_samples']:,} geographically held-out samples. {model['interpretation']}"
+    )
 
 with st.expander("Raw Member A handoff"):
     st.json(data)

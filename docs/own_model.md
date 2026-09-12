@@ -13,3 +13,7 @@ ArborPulse trains a Random Forest forest-loss screening classifier inside Google
 This is a custom **screening** model. Its metrics show agreement with held-out Hansen labels, because Hansen supplies the training labels. They are not independent proof of deforestation. Do not also call Hansen an independent validation of this model.
 
 Run `scripts/train_loss_classifier.js` in the Earth Engine Code Editor. Record the printed confusion matrix, precision, recall, F1, and sample counts in the project presentation.
+
+## Latest pilot evaluation
+
+Using 3,000 balanced training samples and 2,000 geographically held-out testing samples, the current pilot achieved **66.65% overall accuracy**. For the loss class, precision was **68.40%**, recall was **61.90%**, and F1 was **64.99%**. These are prototype screening metrics against held-out Hansen labels, not independent ground-truth accuracy.

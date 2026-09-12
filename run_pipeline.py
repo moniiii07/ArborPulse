@@ -7,6 +7,7 @@ from pathlib import Path
 
 from analysis.acquisition_confidence import score
 from analysis.decision_summary import build_decision_summary
+from analysis.temporal_context import comparison_context
 from analysis.validation_hansen import validate_against_hansen
 from data_acquisition.cloud_mask import mask_scl, usable_pixel_pct
 from data_acquisition.earth_engine_client import init_ee, load_region
@@ -71,6 +72,7 @@ def main() -> None:
     )
     parser.add_argument("--output", default="outputs/member_a_handoff.json")
     args = parser.parse_args()
+    temporal = comparison_context(args.before, args.after)
     init_ee(args.project)
     region = load_region(args.region)
     before, before_ndvi = process_date(region, args.before, args.window_days)
@@ -81,13 +83,14 @@ def main() -> None:
         ndvi_delta = after_ndvi.subtract(before_ndvi).rename("NDVI_delta")
         validation = validate_against_hansen(ndvi_delta, region, reference_year=args.hansen_year)
     confidence = score(before["usable_pixel_pct"], after["usable_pixel_pct"], True)
-    decision = build_decision_summary(before, after, ndvi_change, confidence, validation)
+    decision = build_decision_summary(before, after, ndvi_change, confidence, validation, temporal)
     handoff = {
-        "schema_version": "1.3",
+        "schema_version": "1.4",
         "region": Path(args.region).stem,
         "before": before,
         "after": after,
         "ndvi_change": ndvi_change,
+        "comparison_timing": temporal,
         "hansen_validation": validation,
         "confidence": confidence,
         "decision": decision,

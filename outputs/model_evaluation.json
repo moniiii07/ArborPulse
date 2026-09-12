@@ -1,0 +1,13 @@
+{
+  "model": "ArborPulse Random Forest forest-loss screening classifier",
+  "evaluation": "spatial hold-out: western region trained, eastern region tested",
+  "label_source": "Hansen Global Forest Change v1.13 lossyear, 2023",
+  "features": ["Sentinel-2 B2/B3/B4/B8/B11/B12 change", "NDVI change", "NBR change"],
+  "training_samples": 3000,
+  "testing_samples": 2000,
+  "overall_accuracy": 0.6665,
+  "loss_class_precision": 0.6839779005524862,
+  "loss_class_recall": 0.619,
+  "loss_class_f1": 0.6498687664041994,
+  "interpretation": "Prototype screening-model evaluation against held-out Hansen labels. This is not independent ground-truth validation and not a confirmed-deforestation classifier."
+}
