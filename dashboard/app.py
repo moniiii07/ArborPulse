@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from pathlib import Path
+import subprocess
 import sys
 
 import streamlit as st
@@ -82,10 +83,36 @@ else:
         f"--after {after_request.isoformat()} --hansen-year {after_request.year}",
         language="bash",
     )
+    if st.sidebar.button("Run this analysis", type="primary", use_container_width=True):
+        output_dir = ROOT / "outputs/on_demand"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output = output_dir / f"handoff_{before_request.isoformat()}_to_{after_request.isoformat()}.json"
+        command = [
+            sys.executable, str(ROOT / "run_pipeline.py"),
+            "--project", "composed-arch-476417-e5",
+            "--region", active_region,
+            "--before", before_request.isoformat(),
+            "--after", after_request.isoformat(),
+            "--output", str(output),
+        ]
+        if after_request.year <= 2025:
+            command.extend(["--hansen-year", str(after_request.year)])
+        with st.spinner("Retrieving and checking satellite imagery…"):
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+        if result.returncode == 0 and output.exists():
+            st.session_state["latest_on_demand_handoff"] = str(output)
+            st.sidebar.success("Analysis complete. Loading the new result…")
+            st.rerun()
+        else:
+            st.sidebar.error("Analysis could not complete. Check Earth Engine authentication and the selected dates.")
+            st.sidebar.code(result.stderr or result.stdout, language="text")
 
 options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
 if SAME_SEASON_HANDOFF:
     options["Same-season comparison: Jan 2025 → Jan 2026"] = SAME_SEASON_HANDOFF
+latest_on_demand = st.session_state.get("latest_on_demand_handoff")
+if latest_on_demand and Path(latest_on_demand).exists():
+    options["Latest dashboard-run analysis"] = Path(latest_on_demand)
 selected_label = st.sidebar.selectbox("Analysis scenario", list(options))
 path_text = st.sidebar.text_input("Member A handoff JSON", str(options[selected_label]))
 handoff_path = Path(path_text)

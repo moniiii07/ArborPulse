@@ -14,7 +14,9 @@ The pipeline records whether its before/after dates are seasonally comparable. D
 
 Upload one Polygon or MultiPolygon GeoJSON through the dashboard. ArborPulse validates it and saves it locally as `config/user_region.geojson`; rerun the pipeline with `--region config/user_region.geojson` and your chosen dates. The uploaded boundary is local and intentionally excluded from Git.
 
-The dashboard sidebar also creates a run command from user-selected before/after dates and warns when they are seasonally mismatched. It does not run cloud processing automatically; the user reviews the command before launching it in the project environment.
+The dashboard sidebar creates a run command from user-selected before/after dates and warns when they are seasonally mismatched. It does not run cloud processing merely when fields change; the user chooses when to launch it.
+
+For local use, the sidebar also provides **Run this analysis**. It runs the selected boundary/date pair through the configured Earth Engine project and loads the resulting handoff into the dashboard. Generated results are local and excluded from Git.
 
 ## Scheduled monitoring
 
