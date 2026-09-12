@@ -7,6 +7,7 @@ from pathlib import Path
 import streamlit as st
 
 from config.region_utils import validate_region_geojson
+from feedback.correction_logger import VALID_OUTCOMES, log_review
 
 HANDOFF_CANDIDATES = (
     Path("outputs/member_a_handoff.json"),
@@ -105,6 +106,22 @@ st.subheader("Decision trail")
 for item in decision.get("limitations", []):
     st.write(f"• {item}")
 st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+
+st.subheader("Human review")
+st.caption("Record what a reviewer found after inspecting the flagged area. Feedback stays local and is not committed to Git.")
+with st.form("human_review"):
+    outcome = st.selectbox("Review outcome", sorted(VALID_OUTCOMES))
+    note = st.text_area("Reviewer note (optional)", placeholder="What imagery or field evidence supports this outcome?")
+    submitted = st.form_submit_button("Save review")
+if submitted:
+    saved_path = log_review(
+        handoff_path=str(handoff_path),
+        region=data.get("region", "unknown"),
+        pipeline_status=decision.get("status", "unknown"),
+        outcome=outcome,
+        note=note,
+    )
+    st.success(f"Review saved locally to {saved_path}.")
 
 if MODEL_EVALUATION.exists():
     model = load_handoff(MODEL_EVALUATION)

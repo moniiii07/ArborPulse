@@ -2,8 +2,12 @@
 outputs/decision_logs/*.json
 outputs/decision_logs/*.md
 outputs/geojson/*.geojson
+outputs/monitoring/*.json
+outputs/reviews/*.jsonl
 !outputs/decision_logs/.gitkeep
 !outputs/geojson/.gitkeep
+!outputs/monitoring/.gitkeep
+!outputs/reviews/.gitkeep
 
 # Python
 __pycache__/

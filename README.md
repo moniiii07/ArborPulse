@@ -9,3 +9,11 @@ The pipeline records whether its before/after dates are seasonally comparable. D
 ## Custom study areas
 
 Upload one Polygon or MultiPolygon GeoJSON through the dashboard. ArborPulse validates it and saves it locally as `config/user_region.geojson`; rerun the pipeline with `--region config/user_region.geojson` and your chosen dates. The uploaded boundary is local and intentionally excluded from Git.
+
+## Scheduled monitoring
+
+Use `monitoring/run_monitor.py` to create a dated, same-season monitoring handoff. It compares a monitoring date against the date 365 days earlier and is designed for a weekly scheduler after local testing. See [scheduled monitoring](monitoring/README.md).
+
+## Human review feedback
+
+After inspecting a review queue, a user can record an outcome in the dashboard: confirmed forest loss, seasonal change, fire/burn scar, agriculture/harvest, false alarm, or needs more evidence. Reviews are saved locally in `outputs/reviews/reviews.jsonl` and are not committed to Git.
