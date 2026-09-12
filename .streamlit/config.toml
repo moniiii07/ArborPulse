@@ -1,0 +1,18 @@
+[theme]
+# Forest-forward palette for SylvaSense / ArborPulse
+primaryColor = "#2E7D32"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#EEF4EE"
+textColor = "#1B2A1F"
+font = "sans serif"
+
+[theme.sidebar]
+backgroundColor = "#EEF4EE"
+textColor = "#1B2A1F"
+
+[server]
+# Required for Streamlit Community Cloud / container deploys; harmless locally
+headless = true
+
+[browser]
+gatherUsageStats = false

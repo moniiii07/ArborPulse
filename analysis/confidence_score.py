@@ -63,7 +63,10 @@ class ConfidenceResult:
 
     def summary_line(self) -> str:
         verdict = "PASSED — alert cleared" if self.passed else "BELOW THRESHOLD — human review required"
-        return f"Confidence {self.score:.2f} / threshold {self.threshold:.2f} → {verdict}"
+        # 3-decimal precision: at 2 decimals a score of 0.596 vs a threshold of
+        # 0.60 both print as "0.60", producing "0.60 BELOW threshold 0.60" —
+        # a self-contradicting line in an artifact meant for human auditors.
+        return f"Confidence {self.score:.3f} / threshold {self.threshold:.3f} → {verdict}"
 
 
 def _normalize_temporal_gap(gap_days: float) -> float:
@@ -90,7 +93,10 @@ def compute_confidence(
     number itself.
     """
     w = weights or DEFAULT_WEIGHTS
-    assert abs(sum(w.values()) - 1.0) < 1e-6, "Confidence weights must sum to 1.0"
+    if abs(sum(w.values()) - 1.0) > 1e-6:
+        raise ValueError(
+            f"Confidence weights must sum to 1.0 (got {sum(w.values()):.6f})"
+        )
 
     dq_norm = max(0.0, min(1.0, usable_pixel_pct / 100.0))
     dq = ConfidenceFactor(

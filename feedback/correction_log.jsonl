@@ -1,0 +1,1 @@
+{"run_id": "run_c093822f", "region_name": "Test Forest Polygon A", "system_confidence": 0.6, "system_verdict": "blocked", "human_verdict": "false_positive", "reviewer_notes": "Shadow from adjacent cloud cover, not real canopy loss.", "logged_at": "2026-09-12T16:36:34.505565+00:00"}

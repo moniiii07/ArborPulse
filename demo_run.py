@@ -8,6 +8,9 @@ modules exist, and swapped for real data later with zero changes to the logic
 below — only the mock_* function calls at the top of main() need replacing.
 
 Run: python demo_run.py [--scenario pass|retry|blocked]
+
+run_pipeline() is also the entry point the Streamlit dashboard (dashboard/app.py)
+calls, so the CLI demo and the UI always execute the identical code path.
 """
 
 import argparse
@@ -16,7 +19,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from analysis.confidence_score import compute_confidence
+from analysis.confidence_score import compute_confidence, DEFAULT_CONFIDENCE_THRESHOLD
 from reasoning_log.decision_trail import DecisionTrail
 
 
@@ -63,9 +66,18 @@ def mock_biomass_carbon(height_loss_m: float) -> dict:
 
 # ---------------------------------------------------------------------------
 
-def main(scenario: str):
+def run_pipeline(
+    scenario: str,
+    region_name: str = "Test Forest Polygon A",
+    threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+):
+    """Execute the full mocked pipeline and return (DecisionTrail, ConfidenceResult).
+
+    Shared by the CLI demo below and the Streamlit dashboard, so both surfaces
+    exercise the same logic and produce the same audit artifacts.
+    """
     run_id = f"run_{uuid.uuid4().hex[:8]}"
-    trail = DecisionTrail(run_id=run_id, region_name="Test Forest Polygon A")
+    trail = DecisionTrail(run_id=run_id, region_name=region_name)
 
     trail.add_step("fetch_imagery", "ok", "Fetched Sentinel-2 L2A imagery for Date A and Date B (Google Earth Engine).")
 
@@ -111,6 +123,7 @@ def main(scenario: str):
         ndvi_model_agreement=det["ndvi_model_agreement"],
         temporal_gap_days=gap_days,
         calibration_fit_score=det["calibration_fit_score"],
+        threshold=threshold,
     )
 
     factor_details = {f.name: f"raw={f.raw_value}, norm={f.normalized:.2f}, contrib={f.contribution:.3f} — {f.reasoning}" for f in result.factors}
@@ -118,24 +131,33 @@ def main(scenario: str):
     if result.passed:
         trail.add_step(
             "confidence_gate", "ok",
-            f"Confidence {result.score:.2f} ≥ threshold {result.threshold:.2f} — alert cleared for release.",
+            f"Confidence {result.score:.3f} ≥ threshold {result.threshold:.3f} — alert cleared for release.",
             details=factor_details, is_boundary=True,
         )
         trail.add_step("generate_output", "ok", "GeoJSON + decision trail generated. Alert released to dashboard.")
     else:
         trail.add_step(
             "confidence_gate", "blocked",
-            f"Confidence {result.score:.2f} BELOW threshold {result.threshold:.2f} — alert withheld, flagged for human review.",
+            f"Confidence {result.score:.3f} BELOW threshold {result.threshold:.3f} — alert withheld, flagged for human review.",
             details=factor_details, is_boundary=True,
         )
         trail.add_step("generate_output", "warning", "GeoJSON + decision trail generated. Flagged for human review, no alert fired.")
 
+    return trail, result
+
+
+def main(scenario: str):
+    trail, _result = run_pipeline(scenario)
     json_path, md_path = trail.save()
     print(trail.to_markdown())
     print(f"\nSaved: {json_path}\nSaved: {md_path}")
 
 
 if __name__ == "__main__":
+    # Windows consoles default to a legacy code page (e.g. cp1252) that cannot
+    # encode the trail's status icons (✅ 🔁 🛑) — force UTF-8 output.
+    if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", choices=["pass", "retry", "blocked"], default="pass")
     args = parser.parse_args()

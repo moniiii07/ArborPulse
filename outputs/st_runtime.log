@@ -1,0 +1,204 @@
+2026-09-12 18:32:34.244 Uvicorn server started on :::8510
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8510
+  Network URL: http://172.18.237.254:8510
+  External URL: http://136.233.9.115:8510
+
++------------------------- Traceback (most recent call last) --------------------------+
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\streamlit\r |
+| untime\scriptrunner\exec_code.py:129 in exec_func_with_error_handling                |
+|                                                                                      |
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\streamlit\r |
+| untime\scriptrunner\script_runner.py:807 in code_to_exec                             |
+|                                                                                      |
+| E:\hackbattle\ArborPulse\dashboard\app.py:452 in <module>                            |
+|                                                                                      |
+|   449     st.markdown("##### Year-over-year, season-matched")                        |
+|   450     yoy_df = pd.DataFrame(cmp.ndvi_series, columns=["Date", "NDVI"]).set_index |
+|   451     yoy_df["Year"] = yoy_df.index.map(lambda d: "Year 1" if d < date(2024, 7,  |
+| > 452     yoy_pivot = yoy_df.pivot_table(index=yoy_df.index.dayofyear, columns="Year |
+|   453     st.line_chart(yoy_pivot, height=280)                                       |
+|   454     st.caption(                                                                |
+|   455         "Both years plotted on a shared seasonal axis (day-of-year). The verti |
++--------------------------------------------------------------------------------------+
+AttributeError: 'Index' object has no attribute 'dayofyear'
++------------------------- Traceback (most recent call last) --------------------------+
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\streamlit\r |
+| untime\scriptrunner\exec_code.py:129 in exec_func_with_error_handling                |
+|                                                                                      |
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\streamlit\r |
+| untime\scriptrunner\script_runner.py:807 in code_to_exec                             |
+|                                                                                      |
+| E:\hackbattle\ArborPulse\dashboard\app.py:452 in <module>                            |
+|                                                                                      |
+|   449     st.markdown("##### Year-over-year, season-matched")                        |
+|   450     yoy_df = pd.DataFrame(cmp.ndvi_series, columns=["Date", "NDVI"]).set_index |
+|   451     yoy_df["Year"] = yoy_df.index.map(lambda d: "Year 1" if d < date(2024, 7,  |
+| > 452     yoy_pivot = yoy_df.pivot_table(index=yoy_df.index.dayofyear, columns="Year |
+|   453     st.line_chart(yoy_pivot, height=280)                                       |
+|   454     st.caption(                                                                |
+|   455         "Both years plotted on a shared seasonal axis (day-of-year). The verti |
+|                                                                                      |
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\pandas\core |
+| \indexes\base.py:6621 in map                                                         |
+|                                                                                      |
+|   6618         """                                                                   |
+|   6619         from pandas.core.indexes.multi import MultiIndex                      |
+|   6620                                                                               |
+| > 6621         new_values = self._map_values(mapper, na_action=na_action)            |
+|   6622                                                                               |
+|   6623         # we can return a MultiIndex                                          |
+|   6624         if new_values.size and isinstance(new_values[0], tuple):              |
+|                                                                                      |
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\pandas\core |
+| \base.py:1020 in _map_values                                                         |
+|                                                                                      |
+|   1017         arr = self._values                                                    |
+|   1018                                                                               |
+|   1019         if isinstance(arr, ExtensionArray):                                   |
+| > 1020             return arr.map(mapper, na_action=na_action)                       |
+|   1021                                                                               |
+|   1022         return algorithms.map_array(arr, mapper, na_action=na_action)         |
+|   1023                                                                               |
+|                                                                                      |
+| C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\site-packages\pandas\core |
+| \arrays\_mixins.py:83 in method                                                      |
+|                                                                                      |
+|    80     @wraps(meth)                                                               |
+|    81     def method(self, *args, **kwargs):                                         |
+|    82         if self.ndim == 1:                                                     |
+| >  83             return meth(self, *args, **kwargs)                                 |
+|    84                                                                                |
+|    85         flags = self._ndarray.flags                                            |
+|    86         flat = self.ravel("K")                                                 |
+|                  2026-09-12 18:39:32.749 ::1:63069 - "GET / HTTP/1.1" 304
+2026-09-12 18:39:34.735 ::1:63069 - "GET /_stcore/health HTTP/1.1" 200
+2026-09-12 18:39:34.736 ::1:63076 - "GET /_stcore/host-config HTTP/1.1" 200
+2026-09-12 18:39:34.752 ::1:63077 - "WebSocket /_stcore/stream" [accepted]
+2026-09-12 18:39:34.752 connection open
+2026-09-12 19:18:03.923 ::1:57964 - "GET /_stcore/host-config HTTP/1.1" 200
+2026-09-12 19:18:03.936 ::1:57965 - "GET /_stcore/health HTTP/1.1" 200
+2026-09-12 19:18:04.046 ::1:57969 - "WebSocket /_stcore/stream" [accepted]
+2026-09-12 19:18:04.046 connection open
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Nikki\AppData\Local\Programs\Python\Python314\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-09-12 21:10:26.123 ::1:58837 - "GET /_stcore/health HTTP/1.1" 200
+2026-09-12 21:10:26.126 ::1:58839 - "GET /_stcore/host-config HTTP/1.1" 200
+2026-09-12 21:10:29.036 ::1:58865 - "WebSocket /_stcore/stream" [accepted]
+2026-09-12 21:10:29.044 connection open
+2026-09-12 21:39:52.706 ::1:63381 - "GET / HTTP/1.1" 304
+2026-09-12 21:39:56.228 ::1:63381 - "GET /_stcore/health HTTP/1.1" 200
+2026-09-12 21:39:56.229 ::1:52674 - "GET /_stcore/host-config HTTP/1.1" 200
+2026-09-12 21:39:56.250 ::1:52675 - "WebSocket /_stcore/stream" [accepted]
+2026-09-12 21:39:56.250 connection open
+2026-09-12 21:48:29.795 ::1:56545 - "GET / HTTP/1.1" 304
+2026-09-12 21:48:31.794 ::1:56545 - "GET /_stcore/health HTTP/1.1" 200
+2026-09-12 21:48:31.795 ::1:56553 - "GET /_stcore/host-config HTTP/1.1" 200
+2026-09-12 21:48:31.810 ::1:56554 - "WebSocket /_stcore/stream" [accepted]
+2026-09-12 21:48:31.810 connection open
+e_container_width=False`, use `width='content'`.
+2026-09-12 18:40:03.842 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 18:40:47.434 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 18:40:47.472 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:31.661 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.030 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.073 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.075 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.077 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.078 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.085 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.087 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.089 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:41:32.090 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:50:04.725 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-09-12 21:50:04.729 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.

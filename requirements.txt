@@ -1,5 +1,6 @@
-# --- Currently required (analysis/ + reasoning_log/ modules) ---
+# --- Currently required (analysis/ + reasoning_log/ modules + dashboard/app.py) ---
 streamlit>=1.37
+pandas
 
 # --- Needed once Member A's data_acquisition/ + detection/ modules land ---
 # Uncomment as each piece is wired in — keeping this list accurate matters:
