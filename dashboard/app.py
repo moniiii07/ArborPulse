@@ -20,11 +20,17 @@ SAME_SEASON_CANDIDATES = (
 )
 SAME_SEASON_HANDOFF = next((path for path in SAME_SEASON_CANDIDATES if path.exists()), None)
 MODEL_EVALUATION = Path("outputs/model_evaluation.json")
+MONITORING_DIRECTORIES = (Path("outputs/monitoring"), Path("../Arborpulse/outputs/monitoring"))
 
 
 def load_handoff(path: Path) -> dict:
     with path.open(encoding="utf-8") as handoff_file:
         return json.load(handoff_file)
+
+
+def latest_monitoring_handoff() -> Path | None:
+    candidates = [file for directory in MONITORING_DIRECTORIES if directory.exists() for file in directory.glob("handoff_*.json")]
+    return max(candidates, key=lambda file: file.name) if candidates else None
 
 
 st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
@@ -111,6 +117,17 @@ st.subheader("Decision trail")
 for item in decision.get("limitations", []):
     st.write(f"• {item}")
 st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+
+latest_monitor = latest_monitoring_handoff()
+if latest_monitor:
+    monitor = load_handoff(latest_monitor)
+    monitor_decision = monitor.get("decision", {})
+    st.subheader("Latest scheduled monitoring run")
+    monitor_metrics = st.columns(3)
+    monitor_metrics[0].metric("Monitoring status", monitor_decision.get("status", "unknown").replace("_", " ").title())
+    monitor_metrics[1].metric("NDVI change", f"{monitor['ndvi_change']['mean_delta']:+.4f}")
+    monitor_metrics[2].metric("Data confidence", monitor.get("confidence", {}).get("label", "unknown").title())
+    st.caption(f"Source: {latest_monitor.name} · {monitor_decision.get('recommendation', '')}")
 
 st.subheader("Visual validation")
 st.caption("Open satellite imagery to inspect the review area before recording an outcome. Imagery date and resolution vary by provider.")
