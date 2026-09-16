@@ -13,8 +13,12 @@ import streamlit.components.v1 as components
 # Streamlit executes this file from dashboard/, so expose the project root for
 # shared analysis, configuration, and feedback modules.
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Streamlit Cloud can already have the repository root later in sys.path,
+# behind an unrelated installed package named ``config``. Always put this
+# repository first so local ArborPulse modules are imported deterministically.
+if str(ROOT) in sys.path:
+    sys.path.remove(str(ROOT))
+sys.path.insert(0, str(ROOT))
 
 from config.region_utils import geometry_center, square_study_area, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
