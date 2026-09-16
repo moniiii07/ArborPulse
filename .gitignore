@@ -8,6 +8,7 @@ outputs/on_demand/*.json
 outputs/on_demand/previews/
 outputs/member_a_handoff_same_season.json
 outputs/realtime_cache/
+.streamlit/secrets.toml
 !outputs/decision_logs/.gitkeep
 !outputs/geojson/.gitkeep
 !outputs/monitoring/.gitkeep

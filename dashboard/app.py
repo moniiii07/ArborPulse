@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import date
 from pathlib import Path
 import subprocess
@@ -187,10 +188,15 @@ else:
         if after_request.year <= 2025:
             command.extend(["--hansen-year", str(after_request.year)])
         log_lines: list[str] = []
+        pipeline_environment = os.environ.copy()
+        pipeline_environment["ARBORPULSE_CLOUD_RUN"] = "1"
+        if "earth_engine" in st.secrets:
+            pipeline_environment["EE_SERVICE_ACCOUNT"] = st.secrets["earth_engine"].get("service_account", "")
+            pipeline_environment["EE_PRIVATE_KEY"] = st.secrets["earth_engine"].get("private_key", "")
         with st.status("Starting Earth Engine analysis…", expanded=True) as progress:
             process = subprocess.Popen(
                 command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
+                text=True, bufsize=1, env=pipeline_environment,
             )
             assert process.stdout is not None
             for line in process.stdout:
@@ -216,8 +222,10 @@ else:
             lowered = error_text.lower()
             if "no sentinel-2 scenes" in lowered:
                 message = "No usable Sentinel-2 image was found near those dates. Try dates a few weeks earlier or later."
+            elif "credentials are missing" in lowered:
+                message = "This deployed app needs its Earth Engine service-account credentials in Streamlit Secrets."
             elif "not authenticated" in lowered or "authenticate" in lowered or "permission" in lowered:
-                message = "Earth Engine access needs attention. Authenticate this computer, then try again."
+                message = "Earth Engine access needs attention. Check the deployed service account or local authentication, then try again."
             elif "region" in lowered or "geometry" in lowered:
                 message = "The selected boundary could not be processed. Use a smaller area, valid coordinates, or one Polygon GeoJSON."
             else:
