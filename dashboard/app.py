@@ -65,7 +65,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.title("🌿 ArborPulse")
-st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
+st.caption("Explainable vegetation-change screening for your selected study area")
 st.info("To analyse a new place: use **Find location** in the sidebar, choose a result and area size, then select dates and run the analysis. Upload GeoJSON when you need an exact boundary.")
 
 st.sidebar.markdown("# 🌿 ArborPulse")
