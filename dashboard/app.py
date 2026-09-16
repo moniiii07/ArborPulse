@@ -20,7 +20,7 @@ if str(ROOT) in sys.path:
     sys.path.remove(str(ROOT))
 sys.path.insert(0, str(ROOT))
 
-from config.region_utils import geometry_center, square_study_area, validate_region_geojson
+from arborpulse_region_utils import geometry_center, square_study_area, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
 from analysis.temporal_context import comparison_context
 from analysis.realtime_sensing import GeoResult, build_report, geocode
