@@ -14,10 +14,11 @@ from data_acquisition.earth_engine_client import init_ee, load_region
 from data_acquisition.fetch_dates import candidate_scenes
 from data_acquisition.quality_check import check_and_retry
 from detection.ndvi_crosscheck import compute_ndvi, regional_ndvi_mean, summarise_ndvi_change
+from detection.map_exports import dashboard_visuals
 from detection.threshold_calibration import calibrate_region_baseline
 
 
-def process_date(region, target_date: str, window_days: int) -> tuple[dict, object]:
+def process_date(region, target_date: str, window_days: int) -> tuple[dict, object, object]:
     """Choose an SCL-validated scene, expanding the search only when needed."""
     search_windows = tuple(dict.fromkeys((window_days, 14, 30)))
     attempts: list[dict] = []
@@ -56,7 +57,7 @@ def process_date(region, target_date: str, window_days: int) -> tuple[dict, obje
         "ndvi_mean": regional_ndvi_mean(ndvi, region),
         "calibration": calibrate_region_baseline(ndvi, region),
     }
-    return summary, ndvi
+    return summary, ndvi, scene
 
 
 def main() -> None:
@@ -75,15 +76,24 @@ def main() -> None:
     temporal = comparison_context(args.before, args.after)
     init_ee(args.project)
     region = load_region(args.region)
-    before, before_ndvi = process_date(region, args.before, args.window_days)
-    after, after_ndvi = process_date(region, args.after, args.window_days)
+    print("[1/4] Finding usable Sentinel-2 scenes…", flush=True)
+    before, before_ndvi, before_scene = process_date(region, args.before, args.window_days)
+    after, after_ndvi, after_scene = process_date(region, args.after, args.window_days)
+    print("[2/4] Checking cloud coverage and usable pixels…", flush=True)
     ndvi_change = summarise_ndvi_change(before_ndvi, after_ndvi, region)
+    print("[3/4] Calculating NDVI change and review mask…", flush=True)
     validation = None
     if args.hansen_year is not None:
         ndvi_delta = after_ndvi.subtract(before_ndvi).rename("NDVI_delta")
         validation = validate_against_hansen(ndvi_delta, region, reference_year=args.hansen_year)
     confidence = score(before["usable_pixel_pct"], after["usable_pixel_pct"], True)
     decision = build_decision_summary(before, after, ndvi_change, confidence, validation, temporal)
+    print("[4/4] Building decision trail and map previews…", flush=True)
+    try:
+        preview_directory = Path(args.output).parent / "previews" / Path(args.output).stem
+        visuals = dashboard_visuals(before_scene, after_scene, region, preview_directory)
+    except Exception as error:  # A result should still be usable if preview generation fails.
+        visuals = {"unavailable_reason": str(error)}
     handoff = {
         "schema_version": "1.4",
         "region": Path(args.region).stem,
@@ -94,6 +104,7 @@ def main() -> None:
         "hansen_validation": validation,
         "confidence": confidence,
         "decision": decision,
+        "map_visuals": visuals,
         "model_status": "pending_open_canopy_checkpoint_validation",
     }
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

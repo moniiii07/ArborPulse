@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Streamlit executes this file from dashboard/, so expose the project root for
 # shared analysis, configuration, and feedback modules.
@@ -15,9 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from config.region_utils import geometry_center, validate_region_geojson
+from config.region_utils import geometry_center, square_study_area, validate_region_geojson
 from feedback.correction_logger import VALID_OUTCOMES, get_reviews, log_review
 from analysis.temporal_context import comparison_context
+from analysis.realtime_sensing import GeoResult, build_report, geocode
 
 HANDOFF_CANDIDATES = (
     ROOT / "outputs/member_a_handoff.json",
@@ -44,11 +46,83 @@ def latest_monitoring_handoff() -> Path | None:
 
 
 st.set_page_config(page_title="ArborPulse", page_icon="🌿", layout="wide")
+st.markdown(
+    """
+    <style>
+      [data-testid="stSidebar"] { background: #f2f7ef; }
+      [data-testid="stMetric"] {
+        background: white; border: 1px solid #dce8d8; border-radius: 12px;
+        padding: 14px;
+      }
+      div[data-testid="stButton"] button { border-radius: 9px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.title("🌿 ArborPulse")
 st.caption("Explainable vegetation-change screening for the Rondônia pilot area")
-st.info("To analyse a new place: open the sidebar, upload its GeoJSON boundary under **Study area**, then select **Before date** and **After date** under **New analysis**.")
+st.info("To analyse a new place: use **Find location** in the sidebar, choose a result and area size, then select dates and run the analysis. Upload GeoJSON when you need an exact boundary.")
 
+st.sidebar.markdown("# 🌿 ArborPulse")
+st.sidebar.caption("Forest-change screening · auditable by design")
+page = st.sidebar.radio(
+    "Navigation",
+    ["Overview", "Analyse a place", "Map review", "Site context report", "Monitoring", "Human review", "Model & method"],
+    label_visibility="collapsed",
+)
+st.sidebar.divider()
 st.sidebar.subheader("Study area")
+st.sidebar.caption("Search works best for towns, parks, and protected areas. For a forest that is not listed, enter coordinates below.")
+place_query = st.sidebar.text_input("Place or forest name", placeholder="e.g. Jaru, Rondônia, Brazil")
+if st.sidebar.button("Find location", use_container_width=True):
+    if place_query.strip():
+        with st.sidebar:
+            with st.spinner("Finding locations…"):
+                matches = geocode(place_query)
+        st.session_state["location_matches"] = [match.__dict__ for match in matches]
+    else:
+        st.sidebar.warning("Enter a place or forest name first.")
+
+matches = st.session_state.get("location_matches", [])
+if matches:
+    labels = [
+        f"{match['name']}, {match.get('admin1') or match.get('country') or ''} ({match['lat']:.4f}, {match['lon']:.4f})"
+        for match in matches
+    ]
+    selected_index = st.sidebar.selectbox("Choose location", range(len(labels)), format_func=lambda index: labels[index])
+    radius_km = st.sidebar.slider("Screening area radius (km)", min_value=1, max_value=10, value=3)
+    selected_place = matches[selected_index]
+    if st.sidebar.button("Use this study area", use_container_width=True):
+        region = square_study_area(
+            selected_place["lon"], selected_place["lat"], radius_km, labels[selected_index]
+        )
+        custom_region_path = ROOT / "config/user_region.geojson"
+        custom_region_path.write_text(json.dumps(region, indent=2) + "\n", encoding="utf-8")
+        st.session_state["active_region_payload"] = region
+        st.session_state["boundary_pending_analysis"] = True
+        st.session_state.pop("site_context_report", None)
+        st.sidebar.success("Study area saved. Choose dates below and run the analysis.")
+        st.rerun()
+
+with st.sidebar.expander("Enter coordinates instead"):
+    manual_latitude = st.text_input("Latitude", placeholder="e.g. 22.0840")
+    manual_longitude = st.text_input("Longitude", placeholder="e.g. 88.7400")
+    manual_radius_km = st.slider("Screening radius (km)", min_value=1, max_value=10, value=3, key="manual_radius")
+    if st.button("Use these coordinates", use_container_width=True):
+        try:
+            latitude_value, longitude_value = float(manual_latitude), float(manual_longitude)
+            if not (-90 <= latitude_value <= 90 and -180 <= longitude_value <= 180):
+                raise ValueError("Latitude must be between -90 and 90; longitude must be between -180 and 180.")
+            region = square_study_area(longitude_value, latitude_value, manual_radius_km, "Manual coordinate study area")
+            (ROOT / "config/user_region.geojson").write_text(json.dumps(region, indent=2) + "\n", encoding="utf-8")
+            st.session_state["active_region_payload"] = region
+            st.session_state["boundary_pending_analysis"] = True
+            st.session_state.pop("site_context_report", None)
+            st.success("Study area saved. Choose dates below and run the analysis.")
+            st.rerun()
+        except ValueError as error:
+            st.error(f"Enter valid numeric coordinates. {error}")
+
 upload = st.sidebar.file_uploader("Upload a Polygon GeoJSON", type=["geojson", "json"])
 if upload is not None:
     try:
@@ -56,6 +130,9 @@ if upload is not None:
         validate_region_geojson(uploaded_region)
         custom_region_path = ROOT / "config/user_region.geojson"
         custom_region_path.write_text(json.dumps(uploaded_region, indent=2) + "\n", encoding="utf-8")
+        st.session_state["active_region_payload"] = uploaded_region
+        st.session_state["boundary_pending_analysis"] = True
+        st.session_state.pop("site_context_report", None)
         st.sidebar.success("Boundary validated and saved locally.")
         st.sidebar.code(
             "python run_pipeline.py --project composed-arch-476417-e5 "
@@ -66,8 +143,16 @@ if upload is not None:
         st.sidebar.error(f"Invalid study-area file: {error}")
 
 st.sidebar.subheader("New analysis")
-before_request = st.sidebar.date_input("Before date", value=date(2025, 1, 15))
-after_request = st.sidebar.date_input("After date", value=date(2026, 1, 15))
+before_request = st.sidebar.date_input("Before date", value=date(2025, 1, 15), key="before_date")
+try:
+    recommended_after = before_request.replace(year=before_request.year + 1)
+except ValueError:  # February 29
+    recommended_after = before_request.replace(year=before_request.year + 1, day=28)
+st.sidebar.caption(f"Recommended same-season comparison: {recommended_after.isoformat()}")
+if st.sidebar.button("Use same-season recommendation", use_container_width=True):
+    st.session_state["after_date"] = recommended_after
+    st.rerun()
+after_request = st.sidebar.date_input("After date", value=date(2026, 1, 15), key="after_date")
 if after_request <= before_request:
     st.sidebar.error("The after date must be later than the before date.")
 else:
@@ -88,7 +173,7 @@ else:
         output_dir.mkdir(parents=True, exist_ok=True)
         output = output_dir / f"handoff_{before_request.isoformat()}_to_{after_request.isoformat()}.json"
         command = [
-            sys.executable, str(ROOT / "run_pipeline.py"),
+            sys.executable, "-u", str(ROOT / "run_pipeline.py"),
             "--project", "composed-arch-476417-e5",
             "--region", active_region,
             "--before", before_request.isoformat(),
@@ -97,15 +182,45 @@ else:
         ]
         if after_request.year <= 2025:
             command.extend(["--hansen-year", str(after_request.year)])
-        with st.spinner("Retrieving and checking satellite imagery…"):
-            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
-        if result.returncode == 0 and output.exists():
+        log_lines: list[str] = []
+        with st.status("Starting Earth Engine analysis…", expanded=True) as progress:
+            process = subprocess.Popen(
+                command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                line = line.strip()
+                if line:
+                    log_lines.append(line)
+                    st.write(line)
+                    if line.startswith("["):
+                        progress.update(label=line, state="running")
+            return_code = process.wait()
+            if return_code == 0 and output.exists():
+                progress.update(label="Analysis complete", state="complete", expanded=False)
+            else:
+                progress.update(label="Analysis could not complete", state="error", expanded=True)
+        if return_code == 0 and output.exists():
             st.session_state["latest_on_demand_handoff"] = str(output)
+            st.session_state["boundary_pending_analysis"] = False
+            st.session_state["analysis_scenario"] = "Latest dashboard-run analysis"
             st.sidebar.success("Analysis complete. Loading the new result…")
             st.rerun()
         else:
-            st.sidebar.error("Analysis could not complete. Check Earth Engine authentication and the selected dates.")
-            st.sidebar.code(result.stderr or result.stdout, language="text")
+            error_text = "\n".join(log_lines)
+            lowered = error_text.lower()
+            if "no sentinel-2 scenes" in lowered:
+                message = "No usable Sentinel-2 image was found near those dates. Try dates a few weeks earlier or later."
+            elif "not authenticated" in lowered or "authenticate" in lowered or "permission" in lowered:
+                message = "Earth Engine access needs attention. Authenticate this computer, then try again."
+            elif "region" in lowered or "geometry" in lowered:
+                message = "The selected boundary could not be processed. Use a smaller area, valid coordinates, or one Polygon GeoJSON."
+            else:
+                message = "The analysis did not finish. Confirm your internet connection and Earth Engine project, then try again."
+            st.sidebar.error(message)
+            with st.sidebar.expander("Technical details"):
+                st.code(error_text or "No details were returned.", language="text")
 
 options = {"Original comparison: Jan 2025 → Aug 2025": DEFAULT_HANDOFF}
 if SAME_SEASON_HANDOFF:
@@ -113,7 +228,9 @@ if SAME_SEASON_HANDOFF:
 latest_on_demand = st.session_state.get("latest_on_demand_handoff")
 if latest_on_demand and Path(latest_on_demand).exists():
     options["Latest dashboard-run analysis"] = Path(latest_on_demand)
-selected_label = st.sidebar.selectbox("Analysis scenario", list(options))
+if st.session_state.get("analysis_scenario") not in options:
+    st.session_state["analysis_scenario"] = next(iter(options))
+selected_label = st.sidebar.selectbox("Analysis scenario", list(options), key="analysis_scenario")
 path_text = st.sidebar.text_input("Member A handoff JSON", str(options[selected_label]))
 handoff_path = Path(path_text)
 if not handoff_path.exists():
@@ -127,10 +244,156 @@ before, after = data["before"], data["after"]
 change = data["ndvi_change"]
 timing = data.get("comparison_timing")
 
-region_payload = json.loads((ROOT / "config/region.geojson").read_text(encoding="utf-8"))
-if (ROOT / "config/user_region.geojson").exists():
-    region_payload = json.loads((ROOT / "config/user_region.geojson").read_text(encoding="utf-8"))
+region_payload = st.session_state.get("active_region_payload")
+if region_payload is None:
+    region_payload = json.loads((ROOT / "config/region.geojson").read_text(encoding="utf-8"))
+    if (ROOT / "config/user_region.geojson").exists():
+        region_payload = json.loads((ROOT / "config/user_region.geojson").read_text(encoding="utf-8"))
 longitude, latitude = geometry_center(region_payload)
+
+if st.session_state.get("boundary_pending_analysis"):
+    st.warning("You selected a new study area. The dashboard is still showing the previous analysis until you click **Run this analysis** in the sidebar.")
+else:
+    st.caption(f"Currently viewing: **{selected_label}**")
+
+
+if page == "Analyse a place":
+    st.header("Analyse a place")
+    st.write("Use the sidebar to search for a place or upload its exact boundary, select two dates, then choose **Run this analysis**.")
+    active_boundary = "Your saved local boundary" if (ROOT / "config/user_region.geojson").exists() else "Rondônia pilot boundary"
+    st.info(f"Current study area: **{active_boundary}**. The Earth Engine result will appear here after the run finishes.")
+    st.markdown("#### What ArborPulse will return")
+    st.write("• image quality and cloud checks\n• before/after NDVI change\n• red review-queue pixels\n• Hansen reference overlap\n• an explainable review decision")
+    st.stop()
+
+if page == "Map review":
+    st.header("Map review")
+    st.caption("Use the satellite view to inspect the selected study area. Red review pixels in the Earth Engine map are screening evidence, not a deforestation verdict.")
+    if st.session_state.get("boundary_pending_analysis"):
+        st.warning("The satellite map now shows your new study area. Run the analysis to replace the previous Brazil metrics and review result.")
+    map_metrics = st.columns(3)
+    map_metrics[0].metric("NDVI change", f"{change['mean_delta']:+.4f}")
+    map_metrics[1].metric("Review-queue area", f"{change['loss_pixel_pct']:.2f}%")
+    map_metrics[2].metric("Data confidence", confidence.get("label", "unknown").title())
+    visuals = data.get("map_visuals", {})
+    visual_paths = [Path(str(visuals.get(key, ""))) for key in ("before_true_color", "after_true_color", "ndvi_review_mask")]
+    if all(path.is_file() for path in visual_paths):
+        st.markdown("#### Earth Engine comparison")
+        before_column, after_column, mask_column = st.columns(3)
+        before_column.image(visuals["before_true_color"], caption=f"Before · {before['target_date']}", use_container_width=True)
+        after_column.image(visuals["after_true_color"], caption=f"After · {after['target_date']}", use_container_width=True)
+        mask_column.image(visuals["ndvi_review_mask"], caption="Red NDVI review mask", use_container_width=True)
+        st.warning(visuals.get("note", "Red pixels are a screening layer, not confirmed deforestation."))
+    else:
+        st.info("Run a new analysis to generate Earth Engine before/after/map-mask previews for this location.")
+    st.markdown("#### Study-area location")
+    st.map({"lat": [latitude], "lon": [longitude]}, zoom=12, use_container_width=True)
+    st.caption("This map marks the selected study-area centre. Use the satellite link below for interactive high-resolution context.")
+    st.link_button(
+        "Open full-screen satellite imagery",
+        f"https://www.google.com/maps/@{latitude:.6f},{longitude:.6f},14z/data=!3m1!1e3",
+    )
+    st.info(decision.get("recommendation", "Inspect the Earth Engine map before acting."))
+    st.stop()
+
+if page == "Site context report":
+    st.header("Site context report")
+    st.caption("An automated local-context summary for the selected study area. It supports human review; it is not evidence of deforestation.")
+    properties = region_payload.get("features", [{}])[0].get("properties", {}) if region_payload.get("type") == "FeatureCollection" else {}
+    study_name = properties.get("name", "Selected study area")
+    context_key = f"{latitude:.6f},{longitude:.6f}"
+    report_data = st.session_state.get("site_context_report")
+    if not report_data or report_data.get("context_key") != context_key:
+        place = GeoResult(name=study_name, lat=latitude, lon=longitude, country=None, admin1=None)
+        with st.spinner("Collecting local map, satellite, and weather context…"):
+            report = build_report(place, radius_m=5000, firms=False)
+        report_data = report.to_dict()
+        report_data["satellite_url"] = report.satellite[0] if report.satellite else None
+        report_data["context_key"] = context_key
+        st.session_state["site_context_report"] = report_data
+
+    st.markdown("#### Automated summary")
+    st.write(report_data["summary"])
+    if report_data.get("satellite_url"):
+        st.image(report_data["satellite_url"], caption=f"NASA MODIS context image · {report_data.get('satellite_date', 'date unavailable')}")
+    survey = report_data.get("survey")
+    if survey:
+        st.markdown("#### Nearby mapped land context")
+        st.write(f"{survey['total_features']} mapped green/land features within a {survey['radius_m'] / 1000:.0f} km radius.")
+        if survey.get("counts"):
+            st.bar_chart({"Mapped features": survey["counts"]})
+    st.caption(f"Generated: {report_data['generated_at']}")
+    download_report = {
+        **report_data,
+        "arborpulse_note": "Site context supports human review and is not evidence of deforestation.",
+        "linked_analysis": {
+            "status": decision.get("status"),
+            "headline": decision.get("headline"),
+            "before_date": before.get("target_date"),
+            "after_date": after.get("target_date"),
+        },
+    }
+    st.download_button(
+        "Download full site context report (JSON)",
+        data=json.dumps(download_report, indent=2),
+        file_name=f"arborpulse_site_context_{latitude:.4f}_{longitude:.4f}.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+    st.stop()
+
+if page == "Monitoring":
+    st.header("Monitoring")
+    latest_monitor = latest_monitoring_handoff()
+    if latest_monitor:
+        monitor = load_handoff(latest_monitor)
+        monitor_decision = monitor.get("decision", {})
+        monitor_metrics = st.columns(3)
+        monitor_metrics[0].metric("Latest status", monitor_decision.get("status", "unknown").replace("_", " ").title())
+        monitor_metrics[1].metric("NDVI change", f"{monitor['ndvi_change']['mean_delta']:+.4f}")
+        monitor_metrics[2].metric("Data confidence", monitor.get("confidence", {}).get("label", "unknown").title())
+        st.caption(f"Source: {latest_monitor.name}")
+        st.info(monitor_decision.get("recommendation", "Continue monitoring."))
+    else:
+        st.info("No scheduled monitoring output has been created yet.")
+    st.stop()
+
+if page == "Human review":
+    st.header("Human review")
+    st.caption("Record what a reviewer found after inspecting the satellite imagery. Feedback is stored locally and is not committed to Git.")
+    with st.form("human_review_page"):
+        outcome = st.selectbox("Review outcome", sorted(VALID_OUTCOMES))
+        note = st.text_area("Reviewer note (optional)", placeholder="What imagery or field evidence supports this outcome?")
+        submitted = st.form_submit_button("Save review")
+    if submitted:
+        saved_path = log_review(
+            handoff_path=str(handoff_path), region=data.get("region", "unknown"),
+            pipeline_status=decision.get("status", "unknown"), outcome=outcome, note=note,
+        )
+        st.success(f"Review saved locally to {saved_path}.")
+    reviews = get_reviews()
+    if reviews:
+        st.dataframe([
+            {"Reviewed at": review["reviewed_at"], "Outcome": review["outcome"].replace("_", " "), "Note": review["note"] or "—"}
+            for review in reviews
+        ], hide_index=True, use_container_width=True)
+    st.stop()
+
+if page == "Model & method":
+    st.header("Model & method")
+    st.write("ArborPulse combines satellite-derived NDVI screening with quality checks, local calibration, annual-reference corroboration, and human review.")
+    if MODEL_EVALUATION.exists():
+        model = load_handoff(MODEL_EVALUATION)
+        model_metrics = st.columns(4)
+        model_metrics[0].metric("Spatial hold-out accuracy", f"{model['overall_accuracy'] * 100:.2f}%")
+        model_metrics[1].metric("Loss precision", f"{model['loss_class_precision'] * 100:.2f}%")
+        model_metrics[2].metric("Loss recall", f"{model['loss_class_recall'] * 100:.2f}%")
+        model_metrics[3].metric("Loss F1", f"{model['loss_class_f1'] * 100:.2f}%")
+        st.caption(model["interpretation"])
+    st.markdown("#### Guardrails")
+    for item in decision.get("limitations", []):
+        st.write(f"• {item}")
+    st.stop()
 
 status = decision.get("status", "unknown")
 if status == "review_required":
@@ -160,6 +423,16 @@ st.subheader("Evidence")
 for item in decision.get("evidence", []):
     st.write(f"• {item}")
 
+st.subheader("Vegetation comparison")
+st.bar_chart(
+    {"Mean NDVI": {"Before image": before["ndvi_mean"], "After image": after["ndvi_mean"]}},
+    height=260,
+)
+st.caption(
+    "NDVI is a vegetation-greenness index. The bars summarize the selected study area; "
+    "they do not by themselves identify the cause of change."
+)
+
 validation = data.get("hansen_validation")
 if validation:
     st.subheader("Independent annual reference")
@@ -186,7 +459,15 @@ if latest_monitor:
     st.caption(f"Source: {latest_monitor.name} · {monitor_decision.get('recommendation', '')}")
 
 st.subheader("Visual validation")
-st.caption("Open satellite imagery to inspect the review area before recording an outcome. Imagery date and resolution vary by provider.")
+st.caption(
+    "Satellite context for the selected study area. This is for human inspection; "
+    "the Earth Engine red review layer is the ArborPulse screening result."
+)
+components.iframe(
+    f"https://maps.google.com/maps?q={latitude:.6f},{longitude:.6f}&t=k&z=14&output=embed",
+    height=360,
+    scrolling=False,
+)
 st.link_button(
     "Open satellite imagery for this study area",
     f"https://www.google.com/maps/@{latitude:.6f},{longitude:.6f},14z/data=!3m1!1e3",

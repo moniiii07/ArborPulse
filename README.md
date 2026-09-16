@@ -12,7 +12,7 @@ The pipeline records whether its before/after dates are seasonally comparable. D
 
 ## Custom study areas
 
-Upload one Polygon or MultiPolygon GeoJSON through the dashboard. ArborPulse validates it and saves it locally as `config/user_region.geojson`; rerun the pipeline with `--region config/user_region.geojson` and your chosen dates. The uploaded boundary is local and intentionally excluded from Git.
+Enter a place name in the dashboard to search for a location, choose a match and a 1–10 km screening radius, then choose dates and run the analysis. The app saves this local study area as `config/user_region.geojson`. Upload one Polygon or MultiPolygon GeoJSON instead when you need an exact boundary. User boundaries are local and intentionally excluded from Git.
 
 The dashboard sidebar creates a run command from user-selected before/after dates and warns when they are seasonally mismatched. It does not run cloud processing merely when fields change; the user chooses when to launch it.
 
